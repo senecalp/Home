@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Bookmarks</title>
 <style>
     body {
@@ -107,12 +107,14 @@
         return bookmarksDiv;
     }
 
-    function processDL(dl, parentCategory = null) {
+    function processDL(dl, parentCategory) {
         let currentCategory = parentCategory;
 
-        for (let dt of dl.querySelectorAll(":scope > dt")) {
-            const h3 = dt.querySelector(":scope > h3");
-            const a = dt.querySelector(":scope > a");
+        for (let dt of dl.children) {
+            if (dt.tagName !== "DT") continue;
+
+            const h3 = dt.querySelector("h3");
+            const a = dt.querySelector("a");
 
             if (h3) {
                 const id = h3.textContent.replace(/\s+/g, "_");
@@ -135,8 +137,9 @@
         }
     }
 
+    const defaultCategory = createCategory("Bookmarks", "Bookmarks");
     const rootDL = doc.querySelector("dl");
-    if (rootDL) processDL(rootDL, null);
+    if (rootDL) processDL(rootDL, defaultCategory);
 })();
 </script>
 

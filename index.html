@@ -108,8 +108,6 @@
     }
 
     function processDL(dl, parentCategory) {
-        let currentCategory = parentCategory;
-
         for (let dt of dl.children) {
             if (dt.tagName !== "DT") continue;
 
@@ -118,10 +116,12 @@
 
             if (h3) {
                 const id = h3.textContent.replace(/\s+/g, "_");
-                currentCategory = createCategory(h3.textContent, id);
+                // Create a new category for this folder
+                const categoryDiv = createCategory(h3.textContent, id);
+                // If there is a nested DL (folder contents), process it using this new categoryDiv as parent
                 const nestedDL = dt.nextElementSibling;
                 if (nestedDL && nestedDL.tagName === "DL") {
-                    processDL(nestedDL, currentCategory);
+                    processDL(nestedDL, categoryDiv);
                 }
             }
             else if (a && parentCategory) {
@@ -134,12 +134,14 @@
                 div.appendChild(link);
                 parentCategory.appendChild(div);
             }
+            // if a bookmark is found but parentCategory is null, skip it (no section created)
         }
     }
 
-    const defaultCategory = createCategory("Bookmarks", "Bookmarks");
+    // Start by finding the root DL
     const rootDL = doc.querySelector("dl");
-    if (rootDL) processDL(rootDL, defaultCategory);
+    if (rootDL) processDL(rootDL, null);
+
 })();
 </script>
 

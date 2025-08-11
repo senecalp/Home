@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Bookmarks</title>
+<style>
+    body {
+        font-family: sans-serif;
+        background: #f5f5f5;
+        margin: 0;
+        padding: 20px;
+        color: #333;
+    }
+    h1 {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .search-box {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    .search-box input {
+        width: 80%;
+        max-width: 500px;
+        padding: 10px;
+        font-size: 1rem;
+    }
+    .bookmarks {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+    }
+    .bookmark {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: transform 0.1s ease;
+    }
+    .bookmark:hover {
+        transform: translateY(-3px);
+    }
+    .bookmark a {
+        text-decoration: none;
+        color: #0073e6;
+        font-weight: bold;
+    }
+</style>
+</head>
+<body>
+
+<h1>My Bookmarks</h1>
+
+<div class="search-box">
+    <form action="https://www.google.com/search" method="get">
+        <input type="text" name="q" placeholder="Search Google...">
+    </form>
+</div>
+
+<div class="bookmarks">
+    <div class="bookmark"><a href="https://www.gmail.com" target="_blank">Gmail</a></div>
+    <div class="bookmark"><a href="https://www.youtube.com" target="_blank">YouTube</a></div>
+    <div class="bookmark"><a href="https://news.ycombinator.com" target="_blank">Hacker News</a></div>
+    <div class="bookmark"><a href="https://github.com" target="_blank">GitHub</a></div>
+    <div class="bookmark"><a href="https://openai.com" target="_blank">OpenAI</a></div>
+</div>
+
+</body>
+</html>

@@ -51,7 +51,6 @@
         color: #0073e6;
         font-weight: bold;
     }
-    /* Hide bookmarks by default on mobile */
     @media (max-width: 768px) {
         .bookmarks {
             display: none;
@@ -64,56 +63,82 @@
 </head>
 <body>
 
-<div class="category" data-id="work">
-    <div class="category-header">Work</div>
-    <div class="bookmarks open">
-        <div class="bookmark"><a href="https://mail.google.com" target="_blank">Gmail</a></div>
-        <div class="bookmark"><a href="https://drive.google.com" target="_blank">Google Drive</a></div>
-        <div class="bookmark"><a href="https://github.com" target="_blank">GitHub</a></div>
-    </div>
-</div>
-
-<div class="category" data-id="news">
-    <div class="category-header">News</div>
-    <div class="bookmarks open">
-        <div class="bookmark"><a href="https://news.ycombinator.com" target="_blank">Hacker News</a></div>
-        <div class="bookmark"><a href="https://www.bbc.com" target="_blank">BBC</a></div>
-        <div class="bookmark"><a href="https://www.nytimes.com" target="_blank">NY Times</a></div>
-    </div>
-</div>
-
-<div class="category" data-id="fun">
-    <div class="category-header">Fun</div>
-    <div class="bookmarks open">
-        <div class="bookmark"><a href="https://www.youtube.com" target="_blank">YouTube</a></div>
-        <div class="bookmark"><a href="https://www.reddit.com" target="_blank">Reddit</a></div>
-        <div class="bookmark"><a href="https://store.steampowered.com" target="_blank">Steam</a></div>
-    </div>
-</div>
+<div id="container"></div>
 
 <script>
-(function(){
+(async function(){
+    const response = await fetch("bookmarks.html"); // file must be in same folder
+    const text = await response.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, "text/html");
+
+    const container = document.getElementById("container");
     const savedState = JSON.parse(localStorage.getItem('bookmarkFolders') || '{}');
 
-    document.querySelectorAll('.category').forEach(category => {
-        const header = category.querySelector('.category-header');
-        const bookmarks = category.querySelector('.bookmarks');
-        const id = category.dataset.id;
+    function createCategory(title, id) {
+        const category = document.createElement("div");
+        category.className = "category";
+        category.dataset.id = id;
 
-        // Apply saved state (mobile only)
-        if (window.innerWidth <= 768) {
-            if (savedState[id] === true) bookmarks.classList.add('open');
-            else bookmarks.classList.remove('open');
-        }
+        const header = document.createElement("div");
+        header.className = "category-header";
+        header.textContent = title;
 
-        header.addEventListener('click', () => {
+        const bookmarksDiv = document.createElement("div");
+        bookmarksDiv.className = "bookmarks open";
+
+        category.appendChild(header);
+        category.appendChild(bookmarksDiv);
+        container.appendChild(category);
+
+        header.addEventListener("click", () => {
             if (window.innerWidth <= 768) {
-                bookmarks.classList.toggle('open');
-                savedState[id] = bookmarks.classList.contains('open');
-                localStorage.setItem('bookmarkFolders', JSON.stringify(savedState));
+                bookmarksDiv.classList.toggle("open");
+                savedState[id] = bookmarksDiv.classList.contains("open");
+                localStorage.setItem("bookmarkFolders", JSON.stringify(savedState));
             }
         });
-    });
+
+        if (window.innerWidth <= 768) {
+            if (savedState[id] === true) bookmarksDiv.classList.add("open");
+            else bookmarksDiv.classList.remove("open");
+        }
+
+        return bookmarksDiv;
+    }
+
+    function processDL(dl, prefix="") {
+        let currentCategory = null;
+        let categoryId = "";
+        for (let node of dl.children) {
+            if (node.tagName === "DT") {
+                const h3 = node.querySelector("h3");
+                const a = node.querySelector("a");
+
+                if (h3) {
+                    categoryId = (prefix + h3.textContent).replace(/\s+/g, "_");
+                    currentCategory = createCategory(h3.textContent, categoryId);
+                    const nestedDL = node.nextElementSibling;
+                    if (nestedDL && nestedDL.tagName === "DL") {
+                        processDL(nestedDL, categoryId + "_");
+                    }
+                }
+                if (a && currentCategory) {
+                    const div = document.createElement("div");
+                    div.className = "bookmark";
+                    const link = document.createElement("a");
+                    link.href = a.href;
+                    link.textContent = a.textContent;
+                    link.target = "_blank";
+                    div.appendChild(link);
+                    currentCategory.appendChild(div);
+                }
+            }
+        }
+    }
+
+    const rootDL = doc.querySelector("dl");
+    if (rootDL) processDL(rootDL);
 })();
 </script>
 

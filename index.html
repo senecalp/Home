@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Bookmarks Viewer</title>
+<title>Bookmarks</title>
 <style>
   body {
     font-family: sans-serif;
@@ -11,52 +11,51 @@
     margin: 0; padding: 20px;
     color: #333;
   }
-  .folder {
+  .category {
     background: white;
-    border-radius: 6px;
-    margin-bottom: 15px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
   }
-  .folder > .header {
+  .category-header {
     background: #0073e6;
     color: white;
     padding: 10px 15px;
     cursor: pointer;
-    user-select: none;
     font-weight: bold;
+    user-select: none;
   }
-  .folder > .header:hover {
+  .category-header:hover {
     background: #005bb5;
   }
-  .links {
-    padding: 10px 15px;
+  .bookmarks {
     display: grid;
-    grid-template-columns: repeat(auto-fit,minmax(160px,1fr));
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 10px;
+    padding: 15px;
   }
-  .link-item {
+  .bookmark {
     background: #fafafa;
-    padding: 8px 10px;
-    border-radius: 5px;
+    padding: 10px;
+    border-radius: 6px;
+    text-align: center;
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     transition: transform 0.1s ease;
-    text-align: center;
   }
-  .link-item:hover {
+  .bookmark:hover {
     transform: translateY(-3px);
   }
-  .link-item a {
+  .bookmark a {
     text-decoration: none;
     color: #0073e6;
-    font-weight: 600;
-    word-break: break-word;
-    display: block;
+    font-weight: bold;
   }
   @media (max-width: 768px) {
-    .links {
+    .bookmarks {
       display: none;
     }
-    .links.open {
+    .bookmarks.open {
       display: grid;
     }
   }
@@ -64,94 +63,84 @@
 </head>
 <body>
 
-<div id="bookmark-container"></div>
+<div id="container"></div>
 
 <script>
-(async function() {
-  const response = await fetch('bookmarks.html');
+(async function(){
+  const response = await fetch("bookmarks.html");
   const text = await response.text();
-
-  // Parse the bookmarks.html as a document
   const parser = new DOMParser();
-  const doc = parser.parseFromString(text, 'text/html');
+  const doc = parser.parseFromString(text, "text/html");
 
-  const container = document.getElementById('bookmark-container');
+  const container = document.getElementById("container");
+  const savedState = JSON.parse(localStorage.getItem('bookmarkFolders') || '{}');
 
-  // Toggle function for mobile
-  function setupToggle(header, content) {
-    header.addEventListener('click', () => {
+  function createCategory(title, id) {
+    const category = document.createElement("div");
+    category.className = "category";
+    category.dataset.id = id;
+
+    const header = document.createElement("div");
+    header.className = "category-header";
+    header.textContent = title;
+
+    const bookmarksDiv = document.createElement("div");
+    bookmarksDiv.className = "bookmarks open";
+
+    category.appendChild(header);
+    category.appendChild(bookmarksDiv);
+    container.appendChild(category);
+
+    header.addEventListener("click", () => {
       if (window.innerWidth <= 768) {
-        content.classList.toggle('open');
+        bookmarksDiv.classList.toggle("open");
+        savedState[id] = bookmarksDiv.classList.contains("open");
+        localStorage.setItem("bookmarkFolders", JSON.stringify(savedState));
       }
     });
+
+    if (window.innerWidth <= 768) {
+      if (savedState[id] === true) bookmarksDiv.classList.add("open");
+      else bookmarksDiv.classList.remove("open");
+    }
+
+    return bookmarksDiv;
   }
 
-  // Recursive function to process a DL element (folder contents)
-  function processFolder(dl, parentElement) {
-    // Find all DT children of this DL
+  function processDL(dl, parentCategory = null) {
     for (const dt of dl.children) {
-      if (dt.tagName !== 'DT') continue;
+      if (dt.tagName !== "DT") continue;
 
-      // Check if this DT contains a folder (H3)
-      const folderHeader = dt.querySelector('h3');
-      if (folderHeader) {
-        // Create folder container
-        const folderDiv = document.createElement('div');
-        folderDiv.className = 'folder';
+      const h3 = dt.querySelector("h3");
+      const a = dt.querySelector("a");
 
-        // Create header
-        const headerDiv = document.createElement('div');
-        headerDiv.className = 'header';
-        headerDiv.textContent = folderHeader.textContent;
+      if (h3) {
+        const id = h3.textContent.replace(/\s+/g, "_");
+        const categoryDiv = createCategory(h3.textContent, id);
 
-        // Create links container
-        const linksDiv = document.createElement('div');
-        linksDiv.className = 'links open'; // open by default
-
-        folderDiv.appendChild(headerDiv);
-        folderDiv.appendChild(linksDiv);
-        parentElement.appendChild(folderDiv);
-
-        // Setup toggle for mobile
-        setupToggle(headerDiv, linksDiv);
-
-        // The DL following this DT contains folder content
-        const nextSibling = dt.nextElementSibling;
-        if (nextSibling && nextSibling.tagName === 'DL') {
-          processFolder(nextSibling, linksDiv);
+        // The next sibling of this DT is usually a DL containing the folder contents
+        const nestedDL = dt.nextElementSibling;
+        if (nestedDL && nestedDL.tagName === "DL") {
+          processDL(nestedDL, categoryDiv);
         }
       }
-      else {
-        // Not a folder, maybe a bookmark link?
-        const link = dt.querySelector('a');
-        if (link) {
-          // Only add if parentElement is a links container (to avoid top-level bookmarks without folder)
-          if (parentElement && parentElement.classList.contains('links')) {
-            const linkDiv = document.createElement('div');
-            linkDiv.className = 'link-item';
-
-            const a = document.createElement('a');
-            a.href = link.href;
-            a.textContent = link.textContent || link.href;
-            a.target = '_blank';
-            a.rel = 'noopener noreferrer';
-
-            linkDiv.appendChild(a);
-            parentElement.appendChild(linkDiv);
-          }
-        }
+      else if (a && parentCategory) {
+        const div = document.createElement("div");
+        div.className = "bookmark";
+        const link = document.createElement("a");
+        link.href = a.href;
+        link.textContent = a.textContent || a.href;
+        link.target = "_blank";
+        div.appendChild(link);
+        parentCategory.appendChild(div);
       }
+      // bookmarks outside folders are ignored
     }
   }
 
-  // Start processing from the root DL in bookmarks.html
-  const rootDL = doc.querySelector('dl');
-  if (rootDL) {
-    processFolder(rootDL, container);
-  }
-  else {
-    container.textContent = 'No bookmarks found in bookmarks.html';
-  }
+  const rootDL = doc.querySelector("dl");
+  if (rootDL) processDL(rootDL);
+
 })();
 </script>
 

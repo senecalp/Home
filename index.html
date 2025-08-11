@@ -108,35 +108,43 @@
   }
 
   function processDL(dl, parentCategory = null) {
-    for (const dt of dl.children) {
-      if (dt.tagName !== "DT") continue;
+  for (const dt of dl.children) {
+    if (dt.tagName !== "DT") continue;
 
-      const h3 = dt.querySelector("h3");
-      const a = dt.querySelector("a");
+    const h3 = dt.querySelector("h3");
+    const a = dt.querySelector("a");
+    const nestedDLInsideDT = dt.querySelector("dl");
 
-      if (h3) {
-        const id = h3.textContent.replace(/\s+/g, "_");
-        const categoryDiv = createCategory(h3.textContent, id);
+    if (h3) {
+      const id = h3.textContent.replace(/\s+/g, "_");
+      const categoryDiv = createCategory(h3.textContent, id);
 
-        // The next sibling of this DT is usually a DL containing the folder contents
-        const nestedDL = dt.nextElementSibling;
-        if (nestedDL && nestedDL.tagName === "DL") {
-          processDL(nestedDL, categoryDiv);
-        }
+      const nextSiblingDL = dt.nextElementSibling;
+      if (nextSiblingDL && nextSiblingDL.tagName === "DL") {
+        processDL(nextSiblingDL, categoryDiv);
       }
-      else if (a && parentCategory) {
-        const div = document.createElement("div");
-        div.className = "bookmark";
-        const link = document.createElement("a");
-        link.href = a.href;
-        link.textContent = a.textContent || a.href;
-        link.target = "_blank";
-        div.appendChild(link);
-        parentCategory.appendChild(div);
+      // Also check if there's a nested DL inside this DT (rare but possible)
+      if (nestedDLInsideDT) {
+        processDL(nestedDLInsideDT, categoryDiv);
       }
-      // bookmarks outside folders are ignored
+    }
+    else if (a && parentCategory) {
+      const div = document.createElement("div");
+      div.className = "bookmark";
+      const link = document.createElement("a");
+      link.href = a.href;
+      link.textContent = a.textContent || a.href;
+      link.target = "_blank";
+      div.appendChild(link);
+      parentCategory.appendChild(div);
+    }
+    else if (nestedDLInsideDT) {
+      // In case there is a DL inside DT with no H3 or A, process it with current parentCategory
+      processDL(nestedDLInsideDT, parentCategory);
     }
   }
+}
+
 
   const rootDL = doc.querySelector("dl");
   if (rootDL) processDL(rootDL);

@@ -67,7 +67,7 @@
 
 <script>
 (async function(){
-    const response = await fetch("bookmarks.html"); // file must be in same folder
+    const response = await fetch("bookmarks.html");
     const text = await response.text();
     const parser = new DOMParser();
     const doc = parser.parseFromString(text, "text/html");
@@ -107,38 +107,36 @@
         return bookmarksDiv;
     }
 
-    function processDL(dl, prefix="") {
-        let currentCategory = null;
-        let categoryId = "";
-        for (let node of dl.children) {
-            if (node.tagName === "DT") {
-                const h3 = node.querySelector("h3");
-                const a = node.querySelector("a");
+    function processDL(dl, parentCategory = null) {
+        let currentCategory = parentCategory;
 
-                if (h3) {
-                    categoryId = (prefix + h3.textContent).replace(/\s+/g, "_");
-                    currentCategory = createCategory(h3.textContent, categoryId);
-                    const nestedDL = node.nextElementSibling;
-                    if (nestedDL && nestedDL.tagName === "DL") {
-                        processDL(nestedDL, categoryId + "_");
-                    }
+        for (let dt of dl.querySelectorAll(":scope > dt")) {
+            const h3 = dt.querySelector(":scope > h3");
+            const a = dt.querySelector(":scope > a");
+
+            if (h3) {
+                const id = h3.textContent.replace(/\s+/g, "_");
+                currentCategory = createCategory(h3.textContent, id);
+                const nestedDL = dt.nextElementSibling;
+                if (nestedDL && nestedDL.tagName === "DL") {
+                    processDL(nestedDL, currentCategory);
                 }
-                if (a && currentCategory) {
-                    const div = document.createElement("div");
-                    div.className = "bookmark";
-                    const link = document.createElement("a");
-                    link.href = a.href;
-                    link.textContent = a.textContent;
-                    link.target = "_blank";
-                    div.appendChild(link);
-                    currentCategory.appendChild(div);
-                }
+            }
+            else if (a && parentCategory) {
+                const div = document.createElement("div");
+                div.className = "bookmark";
+                const link = document.createElement("a");
+                link.href = a.href;
+                link.textContent = a.textContent || a.href;
+                link.target = "_blank";
+                div.appendChild(link);
+                parentCategory.appendChild(div);
             }
         }
     }
 
     const rootDL = doc.querySelector("dl");
-    if (rootDL) processDL(rootDL);
+    if (rootDL) processDL(rootDL, null);
 })();
 </script>
 

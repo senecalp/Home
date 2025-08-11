@@ -108,25 +108,46 @@
   }
 
   function processDL(dl, parentCategory = null) {
-    // Get all DT children as array
-    let dtArray = Array.from(dl.children).filter(el => el.tagName === "DT");
+    // Collect DT children and preserve original index
+    let dtArray = Array.from(dl.children)
+      .map((el, idx) => ({ el, idx }))
+      .filter(item => item.el.tagName === "DT");
 
-    // Sort so DTs with H3 text "toolbar" (case-insensitive) come first
-    dtArray.sort((a, b) => {
-      const aH3 = a.querySelector("h3");
-      const bH3 = b.querySelector("h3");
-      const aText = aH3 ? aH3.textContent.toLowerCase() : "";
-      const bText = bH3 ? bH3.textContent.toLowerCase() : "";
+    // Assign weights so toolbar-like folders come first.
+    function weightForDT(dt) {
+      const h3 = dt.querySelector("h3");
+      if (!h3) return 3; // bookmarks or other - lower priority
+      const text = (h3.textContent || "").trim().toLowerCase();
 
-      // Put 'toolbar' first
-      if (aText === "toolbar" && bText !== "toolbar") return -1;
-      if (aText !== "toolbar" && bText === "toolbar") return 1;
+      // Detect PERSONAL_TOOLBAR_FOLDER attribute (Firefox export often sets this)
+      try {
+        if (h3.getAttribute && h3.getAttribute('personal_toolbar_folder') != null) return 0;
+      } catch (e) {}
 
-      // Otherwise keep original order
-      return 0;
+      // Give highest priority to any folder with 'toolbar' in its name
+      if (text.includes('toolbar')) return 0;
+
+      // Slightly lower priority for common related names
+      if (text.includes('bookmarks menu') || text.includes('bookmarks bar') || text.includes('bookmarks toolbar') || text.includes('bookmarks')) return 1;
+
+      // Default
+      return 2;
+    }
+
+    // Build weighted array and stable-sort by weight then original index
+    const weighted = dtArray.map(item => ({
+      dt: item.el,
+      idx: item.idx,
+      score: weightForDT(item.el)
+    }));
+
+    weighted.sort((a, b) => {
+      if (a.score !== b.score) return a.score - b.score;
+      return a.idx - b.idx;
     });
 
-    for (const dt of dtArray) {
+    for (const item of weighted) {
+      const dt = item.dt;
       const h3 = dt.querySelector("h3");
       const a = dt.querySelector("a");
       const nestedDLInsideDT = dt.querySelector("dl");
@@ -135,10 +156,12 @@
         const id = h3.textContent.replace(/\s+/g, "_");
         const categoryDiv = createCategory(h3.textContent, id);
 
+        // The DL sibling usually contains folder contents
         const nextSiblingDL = dt.nextElementSibling;
         if (nextSiblingDL && nextSiblingDL.tagName === "DL") {
           processDL(nextSiblingDL, categoryDiv);
         }
+        // Also handle DL nested inside DT (rare)
         if (nestedDLInsideDT) {
           processDL(nestedDLInsideDT, categoryDiv);
         }
@@ -150,10 +173,12 @@
         link.href = a.href;
         link.textContent = a.textContent || a.href;
         link.target = "_blank";
+        link.rel = "noopener noreferrer";
         div.appendChild(link);
         parentCategory.appendChild(div);
       }
       else if (nestedDLInsideDT) {
+        // DL inside DT without H3 or A (edge case)
         processDL(nestedDLInsideDT, parentCategory);
       }
     }
@@ -161,6 +186,7 @@
 
   const rootDL = doc.querySelector("dl");
   if (rootDL) processDL(rootDL);
+  else container.textContent = "No bookmarks found in bookmarks.html";
 
 })();
 </script>

@@ -26,17 +26,35 @@
         padding: 10px;
         font-size: 1rem;
     }
+    .category {
+        margin-bottom: 20px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    .category-header {
+        background: #0073e6;
+        color: white;
+        padding: 10px 15px;
+        cursor: pointer;
+        font-weight: bold;
+    }
+    .category-header:hover {
+        background: #005bb5;
+    }
     .bookmarks {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 15px;
+        gap: 10px;
+        padding: 15px;
     }
     .bookmark {
-        background: white;
-        padding: 15px;
-        border-radius: 8px;
+        background: #fafafa;
+        padding: 10px;
+        border-radius: 6px;
         text-align: center;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
         transition: transform 0.1s ease;
     }
     .bookmark:hover {
@@ -46,6 +64,15 @@
         text-decoration: none;
         color: #0073e6;
         font-weight: bold;
+    }
+    /* Hide bookmarks by default on mobile */
+    @media (max-width: 768px) {
+        .bookmarks {
+            display: none;
+        }
+        .bookmarks.open {
+            display: grid;
+        }
     }
 </style>
 </head>
@@ -59,13 +86,44 @@
     </form>
 </div>
 
-<div class="bookmarks">
-    <div class="bookmark"><a href="https://www.gmail.com" target="_blank">Gmail</a></div>
-    <div class="bookmark"><a href="https://www.youtube.com" target="_blank">YouTube</a></div>
-    <div class="bookmark"><a href="https://news.ycombinator.com" target="_blank">Hacker News</a></div>
-    <div class="bookmark"><a href="https://github.com" target="_blank">GitHub</a></div>
-    <div class="bookmark"><a href="https://openai.com" target="_blank">OpenAI</a></div>
+<div class="category">
+    <div class="category-header">Work</div>
+    <div class="bookmarks open">
+        <div class="bookmark"><a href="https://mail.google.com" target="_blank">Gmail</a></div>
+        <div class="bookmark"><a href="https://drive.google.com" target="_blank">Google Drive</a></div>
+        <div class="bookmark"><a href="https://github.com" target="_blank">GitHub</a></div>
+    </div>
 </div>
+
+<div class="category">
+    <div class="category-header">News</div>
+    <div class="bookmarks open">
+        <div class="bookmark"><a href="https://news.ycombinator.com" target="_blank">Hacker News</a></div>
+        <div class="bookmark"><a href="https://www.bbc.com" target="_blank">BBC</a></div>
+        <div class="bookmark"><a href="https://www.nytimes.com" target="_blank">NY Times</a></div>
+    </div>
+</div>
+
+<div class="category">
+    <div class="category-header">Fun</div>
+    <div class="bookmarks open">
+        <div class="bookmark"><a href="https://www.youtube.com" target="_blank">YouTube</a></div>
+        <div class="bookmark"><a href="https://www.reddit.com" target="_blank">Reddit</a></div>
+        <div class="bookmark"><a href="https://store.steampowered.com" target="_blank">Steam</a></div>
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.category-header').forEach(header => {
+    header.addEventListener('click', () => {
+        const bookmarks = header.nextElementSibling;
+        // On mobile, toggle open/closed
+        if (window.innerWidth <= 768) {
+            bookmarks.classList.toggle('open');
+        }
+    });
+});
+</script>
 
 </body>
 </html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>My Bookmarks</title>
+<title>Bookmarks</title>
 <style>
     body {
         font-family: sans-serif;
@@ -11,20 +11,6 @@
         margin: 0;
         padding: 20px;
         color: #333;
-    }
-    h1 {
-        text-align: center;
-        margin-bottom: 20px;
-    }
-    .search-box {
-        text-align: center;
-        margin-bottom: 30px;
-    }
-    .search-box input {
-        width: 80%;
-        max-width: 500px;
-        padding: 10px;
-        font-size: 1rem;
     }
     .category {
         margin-bottom: 20px;
@@ -78,15 +64,7 @@
 </head>
 <body>
 
-<h1>My Bookmarks</h1>
-
-<div class="search-box">
-    <form action="https://www.google.com/search" method="get">
-        <input type="text" name="q" placeholder="Search Google...">
-    </form>
-</div>
-
-<div class="category">
+<div class="category" data-id="work">
     <div class="category-header">Work</div>
     <div class="bookmarks open">
         <div class="bookmark"><a href="https://mail.google.com" target="_blank">Gmail</a></div>
@@ -95,7 +73,7 @@
     </div>
 </div>
 
-<div class="category">
+<div class="category" data-id="news">
     <div class="category-header">News</div>
     <div class="bookmarks open">
         <div class="bookmark"><a href="https://news.ycombinator.com" target="_blank">Hacker News</a></div>
@@ -104,7 +82,7 @@
     </div>
 </div>
 
-<div class="category">
+<div class="category" data-id="fun">
     <div class="category-header">Fun</div>
     <div class="bookmarks open">
         <div class="bookmark"><a href="https://www.youtube.com" target="_blank">YouTube</a></div>
@@ -114,15 +92,29 @@
 </div>
 
 <script>
-document.querySelectorAll('.category-header').forEach(header => {
-    header.addEventListener('click', () => {
-        const bookmarks = header.nextElementSibling;
-        // On mobile, toggle open/closed
+(function(){
+    const savedState = JSON.parse(localStorage.getItem('bookmarkFolders') || '{}');
+
+    document.querySelectorAll('.category').forEach(category => {
+        const header = category.querySelector('.category-header');
+        const bookmarks = category.querySelector('.bookmarks');
+        const id = category.dataset.id;
+
+        // Apply saved state (mobile only)
         if (window.innerWidth <= 768) {
-            bookmarks.classList.toggle('open');
+            if (savedState[id] === true) bookmarks.classList.add('open');
+            else bookmarks.classList.remove('open');
         }
+
+        header.addEventListener('click', () => {
+            if (window.innerWidth <= 768) {
+                bookmarks.classList.toggle('open');
+                savedState[id] = bookmarks.classList.contains('open');
+                localStorage.setItem('bookmarkFolders', JSON.stringify(savedState));
+            }
+        });
     });
-});
+})();
 </script>
 
 </body>

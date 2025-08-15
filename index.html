@@ -5,143 +5,135 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Bookmarks</title>
 <style>
+    :root {
+        --bg-color-light: #ffffff;
+        --text-color-light: #000000;
+        --bg-color-dark: #1e1e1e;
+        --text-color-dark: #ffffff;
+    }
+
     body {
         font-family: Arial, sans-serif;
-        margin: 20px;
-        background-color: white;
-        color: black;
+        margin: 0;
+        padding: 20px;
+        background-color: var(--bg-color-light);
+        color: var(--text-color-light);
         transition: background-color 0.3s, color 0.3s;
     }
+
     body.dark-mode {
-        background-color: #121212;
-        color: white;
+        background-color: var(--bg-color-dark);
+        color: var(--text-color-dark);
     }
+
     h2 {
         cursor: pointer;
         margin: 10px 0;
     }
-    ul {
-        list-style-type: none;
-        padding-left: 20px;
+
+    .section {
+        margin-bottom: 20px;
+    }
+
+    .links {
+        margin-left: 20px;
         display: none;
     }
-    li {
+
+    .links a {
+        display: block;
         margin: 5px 0;
-    }
-    a {
         color: inherit;
         text-decoration: none;
     }
-    a:hover {
+
+    .links a:hover {
         text-decoration: underline;
     }
-    .toggle-btn {
+
+    #toggle-dark {
         position: fixed;
         top: 10px;
         right: 10px;
-        background: none;
-        border: 1px solid currentColor;
         padding: 5px 10px;
         cursor: pointer;
-        border-radius: 5px;
     }
 </style>
 </head>
 <body>
-<button class="toggle-btn" id="themeToggle">Toggle Theme</button>
+
+<button id="toggle-dark">Toggle Dark Mode</button>
 <div id="bookmarks"></div>
 
 <script>
-    // Theme handling
-    function applyTheme(theme) {
-        document.body.classList.toggle("dark-mode", theme === "dark");
-        localStorage.setItem("theme", theme);
-    }
+async function loadBookmarks() {
+    const response = await fetch('bookmarks.json');
+    const data = await response.json();
+    const bookmarksDiv = document.getElementById('bookmarks');
 
-    const storedTheme = localStorage.getItem("theme");
-    if (storedTheme) {
-        applyTheme(storedTheme);
-    } else {
-        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-        applyTheme(prefersDark ? "dark" : "light");
-    }
+    function createSection(title, children) {
+        const sectionDiv = document.createElement('div');
+        sectionDiv.className = 'section';
 
-    document.getElementById("themeToggle").addEventListener("click", () => {
-        const isDark = document.body.classList.contains("dark-mode");
-        applyTheme(isDark ? "light" : "dark");
-    });
+        const header = document.createElement('h2');
+        header.textContent = title;
+        header.addEventListener('click', () => {
+            linksDiv.style.display = linksDiv.style.display === 'none' ? 'block' : 'none';
+        });
 
-    // Bookmarks loading
-    fetch("bookmarks.json")
-        .then(response => response.json())
-        .then(data => {
-            const bookmarksDiv = document.getElementById("bookmarks");
-            
-            function createSection(title, children) {
-                const sectionTitle = document.createElement("h2");
-                sectionTitle.textContent = title;
-                const list = document.createElement("ul");
-                
-                sectionTitle.addEventListener("click", () => {
-                    list.style.display = list.style.display === "none" ? "block" : "none";
-                });
+        const linksDiv = document.createElement('div');
+        linksDiv.className = 'links';
 
-                children.forEach(child => {
-                    if (child.type === "folder") {
-                        const folderItem = document.createElement("li");
-                        const folderTitle = document.createElement("h3");
-                        folderTitle.textContent = child.name;
-                        const sublist = document.createElement("ul");
-                        
-                        folderTitle.addEventListener("click", () => {
-                            sublist.style.display = sublist.style.display === "none" ? "block" : "none";
-                        });
-
-                        child.children.forEach(subchild => {
-                            const linkItem = document.createElement("li");
-                            const link = document.createElement("a");
-                            link.href = subchild.url;
-                            link.textContent = subchild.name;
-                            link.target = "_blank";
-                            linkItem.appendChild(link);
-                            sublist.appendChild(linkItem);
-                        });
-
-                        folderItem.appendChild(folderTitle);
-                        folderItem.appendChild(sublist);
-                        list.appendChild(folderItem);
-                    } else if (child.type === "bookmark") {
-                        const linkItem = document.createElement("li");
-                        const link = document.createElement("a");
-                        link.href = child.url;
-                        link.textContent = child.name;
-                        link.target = "_blank";
-                        linkItem.appendChild(link);
-                        list.appendChild(linkItem);
-                    }
-                });
-
-                bookmarksDiv.appendChild(sectionTitle);
-                bookmarksDiv.appendChild(list);
-            }
-
-            // Custom sorting: Toolbar and its subfolders first
-            const sortedRoots = data.roots.bookmark_bar.children.sort((a, b) => {
-                if (a.name.toLowerCase() === "toolbar") return -1;
-                if (b.name.toLowerCase() === "toolbar") return 1;
-                if (a.type === "folder" && b.type !== "folder") return -1;
-                if (a.type !== "folder" && b.type === "folder") return 1;
-                return a.name.localeCompare(b.name);
-            });
-
-            // Create sections from bookmark_bar first
-            createSection("Toolbar", sortedRoots);
-
-            // Create sections from other roots (other bookmarks, etc.)
-            if (data.roots.other) {
-                createSection("Other Bookmarks", data.roots.other.children);
+        children.forEach(child => {
+            if (child.type === 'url') {
+                const link = document.createElement('a');
+                link.href = child.url;
+                link.textContent = child.name;
+                linksDiv.appendChild(link);
+            } else if (child.type === 'folder') {
+                const subSection = createSection(child.name, child.children || []);
+                linksDiv.appendChild(subSection);
             }
         });
+
+        sectionDiv.appendChild(header);
+        sectionDiv.appendChild(linksDiv);
+        return sectionDiv;
+    }
+
+    function sortFolders(folders) {
+        return folders.sort((a, b) => {
+            const aIsToolbar = a.name.toLowerCase().includes('toolbar');
+            const bIsToolbar = b.name.toLowerCase().includes('toolbar');
+            if (aIsToolbar && !bIsToolbar) return -1;
+            if (!aIsToolbar && bIsToolbar) return 1;
+            return a.name.localeCompare(b.name);
+        });
+    }
+
+    sortFolders(data.children || []).forEach(folder => {
+        bookmarksDiv.appendChild(createSection(folder.name, folder.children || []));
+    });
+}
+
+// Dark mode system preference + toggle
+function applySystemTheme() {
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.body.classList.add('dark-mode');
+    } else {
+        document.body.classList.remove('dark-mode');
+    }
+}
+
+document.getElementById('toggle-dark').addEventListener('click', () => {
+    document.body.classList.toggle('dark-mode');
+});
+
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applySystemTheme);
+
+applySystemTheme();
+loadBookmarks();
 </script>
+
 </body>
 </html>

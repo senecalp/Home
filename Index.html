@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bookmarks</title>
+<style>
+  :root {
+    --bg: #f5f5f5;
+    --text: #333;
+    --card-bg: white;
+    --header-bg: #0073e6;
+    --header-hover: #005bb5;
+    --bookmark-bg: #fafafa;
+    --link: #0073e6;
+    --shadow: rgba(0,0,0,0.1);
+  }
+  body.dark {
+    --bg: #121212;
+    --text: #e0e0e0;
+    --card-bg: #1e1e1e;
+    --header-bg: #3399ff;
+    --header-hover: #1a7fcc;
+    --bookmark-bg: #2a2a2a;
+    --link: #66b3ff;
+    --shadow: rgba(0,0,0,0.5);
+  }
+  @media (prefers-color-scheme: dark) {
+    body:not(.light) {
+      --bg: #121212;
+      --text: #e0e0e0;
+      --card-bg: #1e1e1e;
+      --header-bg: #3399ff;
+      --header-hover: #1a7fcc;
+      --bookmark-bg: #2a2a2a;
+      --link: #66b3ff;
+      --shadow: rgba(0,0,0,0.5);
+    }
+  }
+
+  body {
+    font-family: sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    margin: 0; padding: 20px;
+    transition: background 0.3s, color 0.3s;
+  }
+  .category {
+    background: var(--card-bg);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px var(--shadow);
+    overflow: hidden;
+  }
+  .category-header {
+    background: var(--header-bg);
+    color: white;
+    padding: 10px 15px;
+    cursor: pointer;
+    font-weight: bold;
+    user-select: none;
+    transition: background 0.3s;
+  }
+  .category-header:hover {
+    background: var(--header-hover);
+  }
+  .bookmarks {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    padding: 15px;
+  }
+  .bookmark {
+    background: var(--bookmark-bg);
+    padding: 10px;
+    border-radius: 6px;
+    text-align: center;
+    box-shadow: 0 1px 2px var(--shadow);
+    transition: transform 0.1s ease, background 0.3s;
+  }
+  .bookmark:hover {
+    transform: translateY(-3px);
+  }
+  .bookmark a {
+    text-decoration: none;
+    color: var(--link);
+    font-weight: bold;
+  }
+  @media (max-width: 768px) {
+    .bookmarks {
+      display: none;
+    }
+    .bookmarks.open {
+      display: grid;
+    }
+  }
+  /* Theme toggle button */
+  .theme-toggle {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    background: var(--card-bg);
+    color: var(--text);
+    border: 1px solid var(--text);
+    padding: 6px 10px;
+    border-radius: 5px;
+    cursor: pointer;
+    z-index: 1000;
+    font-size: 16px;
+    line-height: 1;
+  }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle">🌓</button>
+<div id="container"></div>
+
+<script>
+(function(){
+  const themeToggleBtn = document.querySelector('.theme-toggle');
+
+  function updateIcon() {
+    if (document.body.classList.contains('dark')) themeToggleBtn.textContent = '🌙';
+    else if (document.body.classList.contains('light')) themeToggleBtn.textContent = '☀️';
+    else themeToggleBtn.textContent = '🌓';
+  }
+
+  function applyTheme(theme) {
+    document.body.classList.remove('light','dark');
+    if (theme === 'light') document.body.classList.add('light');
+    else if (theme === 'dark') document.body.classList.add('dark');
+    updateIcon();
+  }
+
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme) applyTheme(savedTheme);
+  else {
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) applyTheme('dark');
+  }
+
+  themeToggleBtn.addEventListener('click', () => {
+    if (document.body.classList.contains('dark')) {
+      applyTheme('light');
+      localStorage.setItem('theme','light');
+    } else if (document.body.classList.contains('light')) {
+      applyTheme(null); // system default
+      localStorage.removeItem('theme');
+    } else {
+      applyTheme('dark');
+      localStorage.setItem('theme','dark');
+    }
+  });
+
+  // Listen for system changes if no manual override
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+    if (!localStorage.getItem('theme')) {
+      applyTheme(e.matches ? 'dark' : null);
+    }
+  });
+})();
+</script>
+
+<script>
+(async function(){
+  const response = await fetch("bookmarks.html");
+  const text = await response.text();
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(text, "text/html");
+
+  const container = document.getElementById("container");
+  const savedState = JSON.parse(localStorage.getItem('bookmarkFolders') || '{}');
+
+  function createCategory(title, id) {
+    const category = document.createElement("div");
+    category.className = "category";
+    category.dataset.id = id;
+
+    const header = document.createElement("div");
+    header.className = "category-header";
+    header.textContent = title;
+
+    const bookmarksDiv = document.createElement("div");
+    bookmarksDiv.className = "bookmarks open";
+
+    category.appendChild(header);
+    category.appendChild(bookmarksDiv);
+    container.appendChild(category);
+
+    header.addEventListener("click", () => {
+      if (window.innerWidth <= 768) {
+        bookmarksDiv.classList.toggle("open");
+        savedState[id] = bookmarksDiv.classList.contains("open");
+        localStorage.setItem("bookmarkFolders", JSON.stringify(savedState));
+      }
+    });
+
+    if (window.innerWidth <= 768) {
+      if (savedState[id] === true) bookmarksDiv.classList.add("open");
+      else bookmarksDiv.classList.remove("open");
+    }
+
+    return bookmarksDiv;
+  }
+
+  function processDL(dl, parentCategory = null) {
+    let dtArray = Array.from(dl.children)
+      .map((el, idx) => ({ el, idx }))
+      .filter(item => item.el.tagName === "DT");
+
+    function weightForDT(dt) {
+      const h3 = dt.querySelector("h3");
+      if (!h3) return 3;
+      const text = (h3.textContent || "").trim().toLowerCase();
+      try { if (h3.getAttribute && h3.getAttribute('personal_toolbar_folder') != null) return 0; } catch(e){}
+      if (text.includes('toolbar')) return 0;
+      if (text.includes('bookmarks menu') || text.includes('bookmarks bar') || text.includes('bookmarks toolbar') || text.includes('bookmarks')) return 1;
+      return 2;
+    }
+
+    const weighted = dtArray.map(item => ({
+      dt: item.el,
+      idx: item.idx,
+      score: weightForDT(item.el)
+    }));
+
+    weighted.sort((a, b) => {
+      if (a.score !== b.score) return a.score - b.score;
+      return a.idx - b.idx;
+    });
+
+    for (const item of weighted) {
+      const dt = item.dt;
+      const h3 = dt.querySelector("h3");
+      const a = dt.querySelector("a");
+      const nestedDLInsideDT = dt.querySelector("dl");
+
+      if (h3) {
+        const id = h3.textContent.replace(/\s+/g, "_");
+        const categoryDiv = createCategory(h3.textContent, id);
+        const nextSiblingDL = dt.nextElementSibling;
+        if (nextSiblingDL && nextSiblingDL.tagName === "DL") processDL(nextSiblingDL, categoryDiv);
+        if (nestedDLInsideDT) processDL(nestedDLInsideDT, categoryDiv);
+      } else if (a && parentCategory) {
+        const div = document.createElement("div");
+        div.className = "bookmark";
+        const link = document.createElement("a");
+        link.href = a.href;
+        link.textContent = a.textContent || a.href;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        div.appendChild(link);
+        parentCategory.appendChild(div);
+      } else if (nestedDLInsideDT) {
+        processDL(nestedDLInsideDT, parentCategory);
+      }
+    }
+  }
+
+  const rootDL = doc.querySelector("dl");
+  if (rootDL) processDL(rootDL);
+  else container.textContent = "No bookmarks found in bookmarks.html";
+})();
+</script>
+
+</body>
+</html>

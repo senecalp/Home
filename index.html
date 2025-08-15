@@ -5,135 +5,128 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Bookmarks</title>
 <style>
-    :root {
-        --bg-color-light: #ffffff;
-        --text-color-light: #000000;
-        --bg-color-dark: #1e1e1e;
-        --text-color-dark: #ffffff;
-    }
-
     body {
         font-family: Arial, sans-serif;
         margin: 0;
-        padding: 20px;
-        background-color: var(--bg-color-light);
-        color: var(--text-color-light);
+        padding: 0;
+        background-color: var(--bg-color);
+        color: var(--text-color);
         transition: background-color 0.3s, color 0.3s;
     }
-
-    body.dark-mode {
-        background-color: var(--bg-color-dark);
-        color: var(--text-color-dark);
+    .light {
+        --bg-color: #fff;
+        --text-color: #000;
+        --section-bg: #f4f4f4;
     }
-
+    .dark {
+        --bg-color: #121212;
+        --text-color: #e0e0e0;
+        --section-bg: #1e1e1e;
+    }
     h2 {
+        margin: 0;
+        padding: 10px;
+        background: var(--section-bg);
         cursor: pointer;
-        margin: 10px 0;
     }
-
-    .section {
-        margin-bottom: 20px;
+    ul {
+        list-style: none;
+        padding-left: 20px;
+        margin: 0;
     }
-
-    .links {
-        margin-left: 20px;
-        display: none;
+    li {
+        padding: 5px 0;
     }
-
-    .links a {
-        display: block;
-        margin: 5px 0;
-        color: inherit;
+    a {
+        color: var(--text-color);
         text-decoration: none;
     }
-
-    .links a:hover {
+    a:hover {
         text-decoration: underline;
     }
-
-    #toggle-dark {
+    .toggle-btn {
         position: fixed;
         top: 10px;
         right: 10px;
         padding: 5px 10px;
         cursor: pointer;
+        background: var(--section-bg);
+        border: none;
+        border-radius: 15px;
+        color: var(--text-color);
+        font-size: 14px;
     }
 </style>
 </head>
 <body>
-
-<button id="toggle-dark">Toggle Dark Mode</button>
+<button class="toggle-btn">Toggle Dark Mode</button>
 <div id="bookmarks"></div>
 
 <script>
-async function loadBookmarks() {
-    const response = await fetch('bookmarks.json');
-    const data = await response.json();
-    const bookmarksDiv = document.getElementById('bookmarks');
+    // Theme Handling
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const savedTheme = localStorage.getItem('theme');
+    document.body.classList.add(savedTheme || (prefersDark ? 'dark' : 'light'));
 
-    function createSection(title, children) {
-        const sectionDiv = document.createElement('div');
-        sectionDiv.className = 'section';
-
-        const header = document.createElement('h2');
-        header.textContent = title;
-        header.addEventListener('click', () => {
-            linksDiv.style.display = linksDiv.style.display === 'none' ? 'block' : 'none';
-        });
-
-        const linksDiv = document.createElement('div');
-        linksDiv.className = 'links';
-
-        children.forEach(child => {
-            if (child.type === 'url') {
-                const link = document.createElement('a');
-                link.href = child.url;
-                link.textContent = child.name;
-                linksDiv.appendChild(link);
-            } else if (child.type === 'folder') {
-                const subSection = createSection(child.name, child.children || []);
-                linksDiv.appendChild(subSection);
-            }
-        });
-
-        sectionDiv.appendChild(header);
-        sectionDiv.appendChild(linksDiv);
-        return sectionDiv;
-    }
-
-    function sortFolders(folders) {
-        return folders.sort((a, b) => {
-            const aIsToolbar = a.name.toLowerCase().includes('toolbar');
-            const bIsToolbar = b.name.toLowerCase().includes('toolbar');
-            if (aIsToolbar && !bIsToolbar) return -1;
-            if (!aIsToolbar && bIsToolbar) return 1;
-            return a.name.localeCompare(b.name);
-        });
-    }
-
-    sortFolders(data.children || []).forEach(folder => {
-        bookmarksDiv.appendChild(createSection(folder.name, folder.children || []));
+    document.querySelector('.toggle-btn').addEventListener('click', () => {
+        document.body.classList.toggle('dark');
+        document.body.classList.toggle('light');
+        localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
     });
-}
 
-// Dark mode system preference + toggle
-function applySystemTheme() {
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.body.classList.add('dark-mode');
-    } else {
-        document.body.classList.remove('dark-mode');
-    }
-}
+    // Fetch and display bookmarks
+    fetch('bookmarks.json')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('bookmarks');
+            const savedState = JSON.parse(localStorage.getItem('collapsedSections') || '{}');
 
-document.getElementById('toggle-dark').addEventListener('click', () => {
-    document.body.classList.toggle('dark-mode');
-});
+            const createSection = (title, children) => {
+                const section = document.createElement('div');
+                const header = document.createElement('h2');
+                header.textContent = title;
+                section.appendChild(header);
 
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applySystemTheme);
+                const list = document.createElement('ul');
+                list.style.display = savedState[title] ? 'none' : 'block';
 
-applySystemTheme();
-loadBookmarks();
+                children.forEach(child => {
+                    if (child.type === 'folder') {
+                        list.appendChild(createSection(child.name, child.children));
+                    } else if (child.type === 'url') {
+                        const li = document.createElement('li');
+                        const a = document.createElement('a');
+                        a.href = child.url;
+                        a.textContent = child.name;
+                        li.appendChild(a);
+                        list.appendChild(li);
+                    }
+                });
+
+                header.addEventListener('click', () => {
+                    const isCollapsed = list.style.display === 'none';
+                    list.style.display = isCollapsed ? 'block' : 'none';
+                    savedState[title] = !isCollapsed;
+                    localStorage.setItem('collapsedSections', JSON.stringify(savedState));
+                });
+
+                section.appendChild(list);
+                return section;
+            };
+
+            // Move Toolbar and its subfolders to the top
+            data.sort((a, b) => {
+                if (a.name === 'Toolbar') return -1;
+                if (b.name === 'Toolbar') return 1;
+                return a.name.localeCompare(b.name);
+            });
+
+            data.forEach(folder => {
+                if (folder.type === 'folder') {
+                    container.appendChild(createSection(folder.name, folder.children));
+                }
+            });
+        });
 </script>
-
 </body>
 </html>

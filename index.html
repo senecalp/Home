@@ -5,156 +5,143 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>My Bookmarks</title>
 <style>
-  :root {
-    --bg-color: #ffffff;
-    --text-color: #000000;
-    --section-bg: #f0f0f0;
-    --link-color: #0066cc;
-  }
-
-  body.dark {
-    --bg-color: #121212;
-    --text-color: #ffffff;
-    --section-bg: #1e1e1e;
-    --link-color: #66aaff;
-  }
-
-  body {
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    font-family: Arial, sans-serif;
-    padding: 20px;
-    transition: background-color 0.3s, color 0.3s;
-  }
-
-  h2 {
-    cursor: pointer;
-    background-color: var(--section-bg);
-    padding: 10px;
-    border-radius: 5px;
-    margin-top: 20px;
-    user-select: none;
-  }
-
-  .links {
-    margin-left: 20px;
-    display: none;
-  }
-
-  a {
-    color: var(--link-color);
-    text-decoration: none;
-  }
-
-  a:hover {
-    text-decoration: underline;
-  }
-
-  #toggleTheme {
-    position: fixed;
-    top: 10px;
-    right: 10px;
-    padding: 6px 12px;
-    border: none;
-    border-radius: 5px;
-    background: var(--section-bg);
-    color: var(--text-color);
-    cursor: pointer;
-  }
+    body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background-color: white;
+        color: black;
+        transition: background-color 0.3s, color 0.3s;
+    }
+    body.dark-mode {
+        background-color: #121212;
+        color: white;
+    }
+    h2 {
+        cursor: pointer;
+        margin: 10px 0;
+    }
+    ul {
+        list-style-type: none;
+        padding-left: 20px;
+        display: none;
+    }
+    li {
+        margin: 5px 0;
+    }
+    a {
+        color: inherit;
+        text-decoration: none;
+    }
+    a:hover {
+        text-decoration: underline;
+    }
+    .toggle-btn {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: none;
+        border: 1px solid currentColor;
+        padding: 5px 10px;
+        cursor: pointer;
+        border-radius: 5px;
+    }
 </style>
 </head>
 <body>
-<button id="toggleTheme">Toggle Theme</button>
+<button class="toggle-btn" id="themeToggle">Toggle Theme</button>
 <div id="bookmarks"></div>
 
 <script>
-async function loadBookmarks() {
-  const response = await fetch('bookmarks.json');
-  const data = await response.json();
-  displayBookmarks(data.roots);
-}
-
-function displayBookmarks(roots) {
-  const container = document.getElementById('bookmarks');
-  const sections = [];
-
-  function processNode(node, parentFolder) {
-    if (node.type === 'folder' && node.children) {
-      const section = { name: node.name, links: [] };
-      node.children.forEach(child => processNode(child, section));
-      sections.push(section);
-    } else if (node.type === 'url' && parentFolder) {
-      parentFolder.links.push({ name: node.name, url: node.url });
+    // Theme handling
+    function applyTheme(theme) {
+        document.body.classList.toggle("dark-mode", theme === "dark");
+        localStorage.setItem("theme", theme);
     }
-  }
 
-  // Prioritize Toolbar
-  if (roots.bookmark_bar) processNode(roots.bookmark_bar);
-  if (roots.other) processNode(roots.other);
-  if (roots.synced) processNode(roots.synced);
-
-  sections.forEach(section => {
-    if (section.links.length > 0) {
-      const header = document.createElement('h2');
-      header.textContent = section.name;
-      const linkContainer = document.createElement('div');
-      linkContainer.className = 'links';
-
-      section.links.forEach(link => {
-        const a = document.createElement('a');
-        a.href = link.url;
-        a.textContent = link.name;
-        a.target = '_blank';
-        linkContainer.appendChild(a);
-        linkContainer.appendChild(document.createElement('br'));
-      });
-
-      header.addEventListener('click', () => {
-        linkContainer.style.display =
-          linkContainer.style.display === 'none' ? 'block' : 'none';
-      });
-
-      container.appendChild(header);
-      container.appendChild(linkContainer);
+    const storedTheme = localStorage.getItem("theme");
+    if (storedTheme) {
+        applyTheme(storedTheme);
+    } else {
+        const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        applyTheme(prefersDark ? "dark" : "light");
     }
-  });
-}
 
-// THEME HANDLING
-function setTheme(theme) {
-  if (theme === 'dark') {
-    document.body.classList.add('dark');
-  } else {
-    document.body.classList.remove('dark');
-  }
-}
+    document.getElementById("themeToggle").addEventListener("click", () => {
+        const isDark = document.body.classList.contains("dark-mode");
+        applyTheme(isDark ? "light" : "dark");
+    });
 
-function applyPreferredTheme() {
-  const savedTheme = localStorage.getItem('theme');
-  if (savedTheme) {
-    setTheme(savedTheme);
-  } else {
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    setTheme(prefersDark ? 'dark' : 'light');
-  }
-}
+    // Bookmarks loading
+    fetch("bookmarks.json")
+        .then(response => response.json())
+        .then(data => {
+            const bookmarksDiv = document.getElementById("bookmarks");
+            
+            function createSection(title, children) {
+                const sectionTitle = document.createElement("h2");
+                sectionTitle.textContent = title;
+                const list = document.createElement("ul");
+                
+                sectionTitle.addEventListener("click", () => {
+                    list.style.display = list.style.display === "none" ? "block" : "none";
+                });
 
-document.getElementById('toggleTheme').addEventListener('click', () => {
-  const isDark = document.body.classList.contains('dark');
-  const newTheme = isDark ? 'light' : 'dark';
-  localStorage.setItem('theme', newTheme);
-  setTheme(newTheme);
-});
+                children.forEach(child => {
+                    if (child.type === "folder") {
+                        const folderItem = document.createElement("li");
+                        const folderTitle = document.createElement("h3");
+                        folderTitle.textContent = child.name;
+                        const sublist = document.createElement("ul");
+                        
+                        folderTitle.addEventListener("click", () => {
+                            sublist.style.display = sublist.style.display === "none" ? "block" : "none";
+                        });
 
-// Detect system changes
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-  if (!localStorage.getItem('theme')) {
-    setTheme(e.matches ? 'dark' : 'light');
-  }
-});
+                        child.children.forEach(subchild => {
+                            const linkItem = document.createElement("li");
+                            const link = document.createElement("a");
+                            link.href = subchild.url;
+                            link.textContent = subchild.name;
+                            link.target = "_blank";
+                            linkItem.appendChild(link);
+                            sublist.appendChild(linkItem);
+                        });
 
-applyPreferredTheme();
-loadBookmarks();
+                        folderItem.appendChild(folderTitle);
+                        folderItem.appendChild(sublist);
+                        list.appendChild(folderItem);
+                    } else if (child.type === "bookmark") {
+                        const linkItem = document.createElement("li");
+                        const link = document.createElement("a");
+                        link.href = child.url;
+                        link.textContent = child.name;
+                        link.target = "_blank";
+                        linkItem.appendChild(link);
+                        list.appendChild(linkItem);
+                    }
+                });
+
+                bookmarksDiv.appendChild(sectionTitle);
+                bookmarksDiv.appendChild(list);
+            }
+
+            // Custom sorting: Toolbar and its subfolders first
+            const sortedRoots = data.roots.bookmark_bar.children.sort((a, b) => {
+                if (a.name.toLowerCase() === "toolbar") return -1;
+                if (b.name.toLowerCase() === "toolbar") return 1;
+                if (a.type === "folder" && b.type !== "folder") return -1;
+                if (a.type !== "folder" && b.type === "folder") return 1;
+                return a.name.localeCompare(b.name);
+            });
+
+            // Create sections from bookmark_bar first
+            createSection("Toolbar", sortedRoots);
+
+            // Create sections from other roots (other bookmarks, etc.)
+            if (data.roots.other) {
+                createSection("Other Bookmarks", data.roots.other.children);
+            }
+        });
 </script>
 </body>
 </html>

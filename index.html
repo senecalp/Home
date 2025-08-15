@@ -1,195 +1,160 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Bookmarks</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Bookmarks</title>
 <style>
+  :root {
+    --bg-color: #ffffff;
+    --text-color: #000000;
+    --section-bg: #f0f0f0;
+    --link-color: #0066cc;
+  }
+
+  body.dark {
+    --bg-color: #121212;
+    --text-color: #ffffff;
+    --section-bg: #1e1e1e;
+    --link-color: #66aaff;
+  }
+
   body {
-    font-family: sans-serif;
-    background: #f5f5f5;
-    margin: 0; padding: 20px;
-    color: #333;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: Arial, sans-serif;
+    padding: 20px;
+    transition: background-color 0.3s, color 0.3s;
   }
-  .category {
-    background: white;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    overflow: hidden;
-  }
-  .category-header {
-    background: #0073e6;
-    color: white;
-    padding: 10px 15px;
+
+  h2 {
     cursor: pointer;
-    font-weight: bold;
+    background-color: var(--section-bg);
+    padding: 10px;
+    border-radius: 5px;
+    margin-top: 20px;
     user-select: none;
   }
-  .category-header:hover {
-    background: #005bb5;
+
+  .links {
+    margin-left: 20px;
+    display: none;
   }
-  .bookmarks {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    gap: 10px;
-    padding: 15px;
-  }
-  .bookmark {
-    background: #fafafa;
-    padding: 10px;
-    border-radius: 6px;
-    text-align: center;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    transition: transform 0.1s ease;
-  }
-  .bookmark:hover {
-    transform: translateY(-3px);
-  }
-  .bookmark a {
+
+  a {
+    color: var(--link-color);
     text-decoration: none;
-    color: #0073e6;
-    font-weight: bold;
   }
-  @media (max-width: 768px) {
-    .bookmarks {
-      display: none;
-    }
-    .bookmarks.open {
-      display: grid;
-    }
+
+  a:hover {
+    text-decoration: underline;
+  }
+
+  #toggleTheme {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 5px;
+    background: var(--section-bg);
+    color: var(--text-color);
+    cursor: pointer;
   }
 </style>
 </head>
 <body>
-
-<div id="container"></div>
+<button id="toggleTheme">Toggle Theme</button>
+<div id="bookmarks"></div>
 
 <script>
-(async function(){
-  const response = await fetch("bookmarks.html");
-  const text = await response.text();
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(text, "text/html");
+async function loadBookmarks() {
+  const response = await fetch('bookmarks.json');
+  const data = await response.json();
+  displayBookmarks(data.roots);
+}
 
-  const container = document.getElementById("container");
-  const savedState = JSON.parse(localStorage.getItem('bookmarkFolders') || '{}');
+function displayBookmarks(roots) {
+  const container = document.getElementById('bookmarks');
+  const sections = [];
 
-  function createCategory(title, id) {
-    const category = document.createElement("div");
-    category.className = "category";
-    category.dataset.id = id;
-
-    const header = document.createElement("div");
-    header.className = "category-header";
-    header.textContent = title;
-
-    const bookmarksDiv = document.createElement("div");
-    bookmarksDiv.className = "bookmarks open";
-
-    category.appendChild(header);
-    category.appendChild(bookmarksDiv);
-    container.appendChild(category);
-
-    header.addEventListener("click", () => {
-      if (window.innerWidth <= 768) {
-        bookmarksDiv.classList.toggle("open");
-        savedState[id] = bookmarksDiv.classList.contains("open");
-        localStorage.setItem("bookmarkFolders", JSON.stringify(savedState));
-      }
-    });
-
-    if (window.innerWidth <= 768) {
-      if (savedState[id] === true) bookmarksDiv.classList.add("open");
-      else bookmarksDiv.classList.remove("open");
-    }
-
-    return bookmarksDiv;
-  }
-
-  function processDL(dl, parentCategory = null) {
-    // Collect DT children and preserve original index
-    let dtArray = Array.from(dl.children)
-      .map((el, idx) => ({ el, idx }))
-      .filter(item => item.el.tagName === "DT");
-
-    // Assign weights so toolbar-like folders come first.
-    function weightForDT(dt) {
-      const h3 = dt.querySelector("h3");
-      if (!h3) return 3; // bookmarks or other - lower priority
-      const text = (h3.textContent || "").trim().toLowerCase();
-
-      // Detect PERSONAL_TOOLBAR_FOLDER attribute (Firefox export often sets this)
-      try {
-        if (h3.getAttribute && h3.getAttribute('personal_toolbar_folder') != null) return 0;
-      } catch (e) {}
-
-      // Give highest priority to any folder with 'toolbar' in its name
-      if (text.includes('toolbar')) return 0;
-
-      // Slightly lower priority for common related names
-      if (text.includes('bookmarks menu') || text.includes('bookmarks bar') || text.includes('bookmarks toolbar') || text.includes('bookmarks')) return 1;
-
-      // Default
-      return 2;
-    }
-
-    // Build weighted array and stable-sort by weight then original index
-    const weighted = dtArray.map(item => ({
-      dt: item.el,
-      idx: item.idx,
-      score: weightForDT(item.el)
-    }));
-
-    weighted.sort((a, b) => {
-      if (a.score !== b.score) return a.score - b.score;
-      return a.idx - b.idx;
-    });
-
-    for (const item of weighted) {
-      const dt = item.dt;
-      const h3 = dt.querySelector("h3");
-      const a = dt.querySelector("a");
-      const nestedDLInsideDT = dt.querySelector("dl");
-
-      if (h3) {
-        const id = h3.textContent.replace(/\s+/g, "_");
-        const categoryDiv = createCategory(h3.textContent, id);
-
-        // The DL sibling usually contains folder contents
-        const nextSiblingDL = dt.nextElementSibling;
-        if (nextSiblingDL && nextSiblingDL.tagName === "DL") {
-          processDL(nextSiblingDL, categoryDiv);
-        }
-        // Also handle DL nested inside DT (rare)
-        if (nestedDLInsideDT) {
-          processDL(nestedDLInsideDT, categoryDiv);
-        }
-      }
-      else if (a && parentCategory) {
-        const div = document.createElement("div");
-        div.className = "bookmark";
-        const link = document.createElement("a");
-        link.href = a.href;
-        link.textContent = a.textContent || a.href;
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        div.appendChild(link);
-        parentCategory.appendChild(div);
-      }
-      else if (nestedDLInsideDT) {
-        // DL inside DT without H3 or A (edge case)
-        processDL(nestedDLInsideDT, parentCategory);
-      }
+  function processNode(node, parentFolder) {
+    if (node.type === 'folder' && node.children) {
+      const section = { name: node.name, links: [] };
+      node.children.forEach(child => processNode(child, section));
+      sections.push(section);
+    } else if (node.type === 'url' && parentFolder) {
+      parentFolder.links.push({ name: node.name, url: node.url });
     }
   }
 
-  const rootDL = doc.querySelector("dl");
-  if (rootDL) processDL(rootDL);
-  else container.textContent = "No bookmarks found in bookmarks.html";
+  // Prioritize Toolbar
+  if (roots.bookmark_bar) processNode(roots.bookmark_bar);
+  if (roots.other) processNode(roots.other);
+  if (roots.synced) processNode(roots.synced);
 
-})();
+  sections.forEach(section => {
+    if (section.links.length > 0) {
+      const header = document.createElement('h2');
+      header.textContent = section.name;
+      const linkContainer = document.createElement('div');
+      linkContainer.className = 'links';
+
+      section.links.forEach(link => {
+        const a = document.createElement('a');
+        a.href = link.url;
+        a.textContent = link.name;
+        a.target = '_blank';
+        linkContainer.appendChild(a);
+        linkContainer.appendChild(document.createElement('br'));
+      });
+
+      header.addEventListener('click', () => {
+        linkContainer.style.display =
+          linkContainer.style.display === 'none' ? 'block' : 'none';
+      });
+
+      container.appendChild(header);
+      container.appendChild(linkContainer);
+    }
+  });
+}
+
+// THEME HANDLING
+function setTheme(theme) {
+  if (theme === 'dark') {
+    document.body.classList.add('dark');
+  } else {
+    document.body.classList.remove('dark');
+  }
+}
+
+function applyPreferredTheme() {
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme) {
+    setTheme(savedTheme);
+  } else {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    setTheme(prefersDark ? 'dark' : 'light');
+  }
+}
+
+document.getElementById('toggleTheme').addEventListener('click', () => {
+  const isDark = document.body.classList.contains('dark');
+  const newTheme = isDark ? 'light' : 'dark';
+  localStorage.setItem('theme', newTheme);
+  setTheme(newTheme);
+});
+
+// Detect system changes
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+  if (!localStorage.getItem('theme')) {
+    setTheme(e.matches ? 'dark' : 'light');
+  }
+});
+
+applyPreferredTheme();
+loadBookmarks();
 </script>
-
 </body>
 </html>
